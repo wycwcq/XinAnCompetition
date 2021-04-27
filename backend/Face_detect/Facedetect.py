@@ -127,14 +127,16 @@ def Detect_VideoFace(video_frames, faces_path, num_threshold, device):
             continue
 
 if __name__ == '__main__':
-    video_url = 'http://qrshcr4rw.hn-bkt.clouddn.com/video/Obama_short_1.mp4'
+    video_url = ['http://qrshcr4rw.hn-bkt.clouddn.com/video/Obama_short_1.mp4']
     example_faces = {
         'Obama': 'http://qrshcr4rw.hn-bkt.clouddn.com/image/obama.png',
         'Pujing': 'http://qrshcr4rw.hn-bkt.clouddn.com/image/pujing.png'
     }
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    video_deal = Video_Deal(video_url)
-    video_frames, _, _, _ = video_deal.video_read()
+    video_deal = Video_Deal(video_paths=video_url)
+    video_names = video_deal.video_name
+    video_frames = video_deal.video_read()
+    video_frames = video_frames[video_names[0]][0]
     if Detect_VideoFace(video_frames=video_frames, faces_path=example_faces, num_threshold=0.3, device=device):
         print("Target characters in the video!")
     else:
