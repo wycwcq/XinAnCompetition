@@ -104,7 +104,7 @@ def Detect_VideoFace(video_frames, faces_path, num_threshold, device):
     params:
     video_frames: list类型，包含图像帧
     detected_exp_faces: 字典类型，name->深度特征
-    num_threshold: int类型，表示该视频中存在百分之多少帧包含目标人物时认为该视频包含目标人物
+    num_threshold: float类型，应位于0到1之间，表示该视频中存在百分之多少帧包含目标人物时认为该视频包含目标人物
     return:
     bool类型，表示该视频中是否存在目标人物
     """
