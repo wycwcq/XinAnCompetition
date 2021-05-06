@@ -19,11 +19,13 @@ import torch
 import torch.nn as nn
 from PIL import Image as pil_image
 from tqdm import tqdm
+import sys
+sys.path.append('./backend/Deepfake_detect1')
 
 from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -103,7 +105,7 @@ def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
     return int(prediction), output
 
 
-def test_full_image_network(video_path, model_path, output_path,
+def test_full_image_network(video_path, 
                             start_frame=0, end_frame=None, cuda=True):
     """
     Reads a video and evaluates a subset of frames with the a detection network
@@ -118,14 +120,14 @@ def test_full_image_network(video_path, model_path, output_path,
     :return:
     """
     print('Starting: {}'.format(video_path))
-
+    model_path = '/home/cv/wu/wyc/XinAn/XinAnCompetition/backend/Deepfake_detect1/pretrained_model/df_c0_best.pkl'
     # Read and write
     reader = cv2.VideoCapture(video_path)
 
     video_fn = video_path.split('/')[-1].split('.')[0]+'.avi'
-    os.makedirs(output_path, exist_ok=True)
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-    fps = reader.get(cv2.CAP_PROP_FPS)
+    # os.makedirs(output_path, exist_ok=True)
+    # fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    # fps = reader.get(cv2.CAP_PROP_FPS)
     num_frames = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
     writer = None
 
@@ -147,9 +149,9 @@ def test_full_image_network(video_path, model_path, output_path,
 
     # Text variables
     # 文本变量
-    font_face = cv2.FONT_HERSHEY_SIMPLEX
-    thickness = 2
-    font_scale = 1
+    # font_face = cv2.FONT_HERSHEY_SIMPLEX
+    # thickness = 2
+    # font_scale = 1
 
     # Frame numbers and length of output video
     frame_num = 0
@@ -157,7 +159,10 @@ def test_full_image_network(video_path, model_path, output_path,
     end_frame = end_frame if end_frame else num_frames
     pbar = tqdm(total=end_frame-start_frame)
 
+    video_final_score = 0
+
     while reader.isOpened():
+        frame_final_score = 0
         _, image = reader.read()
         if image is None:
             break
@@ -171,9 +176,9 @@ def test_full_image_network(video_path, model_path, output_path,
         height, width = image.shape[:2]
 
         # Init output writer
-        if writer is None:
-            writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
-                                     (height, width)[::-1])
+        # if writer is None:
+        #     writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
+        #                              (height, width)[::-1])
 
         # 2. Detect with dlib
         # 这里是读取了人脸
@@ -188,65 +193,42 @@ def test_full_image_network(video_path, model_path, output_path,
                 cropped_face = image[y:y+size, x:x+size]
 
                 # Actual prediction using our model
+                # 这里返回的output，索引0为该人脸为假的概率，索引1为该人脸为真的概率
                 prediction, output = predict_with_model(cropped_face, model,
                                                         cuda=cuda)
                 # ------------------------------------------------------------------
-
+                frame_final_score += output[0][1].item()
                 # Text and bb
-                x = face.left()
-                y = face.top()
-                w = face.right() - x
-                h = face.bottom() - y
-                label = 'fake' if prediction == 1 else 'real'
-                color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
-                output_list = ['{0:.2f}'.format(float(x)) for x in
-                               output.detach().cpu().numpy()[0]]
-                cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
-                            font_face, font_scale,
-                            color, thickness, 2)
-                # draw box over face
-                cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-            # # For now only take biggest face
-            # face = faces[0]
+                # x = face.left()
+                # y = face.top()
+                # w = face.right() - x
+                # h = face.bottom() - y
+                # label = 'fake' if prediction == 1 else 'real'
+                # color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
+                # output_list = ['{0:.2f}'.format(float(x)) for x in
+                #                output.detach().cpu().numpy()[0]]
+                # cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
+                #             font_face, font_scale,
+                #             color, thickness, 2)
+                # # draw box over face
+                # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 
-            # # --- Prediction ---------------------------------------------------
-            # # Face crop with dlib and bounding box scale enlargement
-            # x, y, size = get_boundingbox(face, width, height)
-            # cropped_face = image[y:y+size, x:x+size]
-
-            # # Actual prediction using our model
-            # prediction, output = predict_with_model(cropped_face, model,
-            #                                         cuda=cuda)
-            # # ------------------------------------------------------------------
-
-            # # Text and bb
-            # x = face.left()
-            # y = face.top()
-            # w = face.right() - x
-            # h = face.bottom() - y
-            # label = 'fake' if prediction == 1 else 'real'
-            # color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
-            # output_list = ['{0:.2f}'.format(float(x)) for x in
-            #                output.detach().cpu().numpy()[0]]
-            # cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
-            #             font_face, font_scale,
-            #             color, thickness, 2)
-            # # draw box over face
-            # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+            frame_final_score = frame_final_score / len(faces)
+            video_final_score += frame_final_score
 
         if frame_num >= end_frame:
             break
+        # writer.write(image)
 
-        # Show
-        # cv2.imshow('test', image)
-        # cv2.waitKey(33)     # About 30 fps
-        writer.write(image)
+    video_final_score = video_final_score / frame_num
     pbar.close()
-    if writer is not None:
-        writer.release()
-        print('Finished! Output saved under {}'.format(output_path))
-    else:
-        print('Input video file was empty')
+    # if writer is not None:
+    #     writer.release()
+    #     print('Finished! Output saved under {}'.format(output_path))
+    # else:
+    #     print('Input video file was empty')
+
+    return video_final_score
 
 
 if __name__ == '__main__':
@@ -277,6 +259,7 @@ if __name__ == '__main__':
     model_path = '/home/cv/wu/wyc/XinAn/XinAnCompetition/backend/Deepfake_detect1/pretrained_model/df_c0_best.pkl'
     output_path = '/home/cv/wu/wyc/XinAn/test/deepfake_detect1'
     if video_path.endswith('.mp4') or video_path.endswith('.avi'):
-        test_full_image_network(video_path=video_path, model_path=model_path, output_path=output_path)
+        res = test_full_image_network(video_path=video_path)
+        print(res)
     else:
         print("This format is not currently supported!")
